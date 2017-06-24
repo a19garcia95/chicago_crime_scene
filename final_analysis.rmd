@@ -1,0 +1,227 @@
+---
+title: "Applied Data Science & Machine Learning on Chicago Crimes Dataset"
+author: "Alejandro Garcia"
+date: "6/12/2017"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+### INTRODUCTION & MOTIVATION
+
+For the past years, Chicago has been considered one of the most dangerous cities in the US. The motivation behind this project is to help the Chicago Police Department make better decisions with the use of data. Its important for them to receive key insights from this dataset. This dataset contains information from the Chicago Police Department from 2012 to 2017
+
+### DESCRIPTION OF DATASET
+
+ID - Unique identifier for the record.
+
+Case Number - The Chicago Police Department RD Number (Records Division Number), which is unique to the incident.
+
+Date - Date when the incident occurred. this is sometimes a best estimate.
+
+Block - The partially redacted address where the incident occurred, placing it on the same block as the actual address.
+
+IUCR - The Illinois Unifrom Crime Reporting code. This is directly linked to the Primary Type and Description. See the list of IUCR codes at https://data.cityofchicago.org/d/c7ck-438e.
+
+Primary Type - The primary description of the IUCR code.
+
+Description - The secondary description of the IUCR code, a subcategory of the primary description.
+
+Location Description - Description of the location where the incident occurred.
+
+Arrest - Indicates whether an arrest was made.
+
+Domestic - Indicates whether the incident was domestic-related as defined by the Illinois Domestic Violence Act.
+
+Beat - Indicates the beat where the incident occurred. A beat is the smallest police geographic area – each beat has a dedicated police beat car. Three to five beats make up a police sector, and three sectors make up a police district. The Chicago Police Department has 22 police districts. See the beats at https://data.cityofchicago.org/d/aerh-rz74.
+
+District - Indicates the police district where the incident occurred. See the districts at https://data.cityofchicago.org/d/fthy-xz3r.
+
+Ward - The ward (City Council district) where the incident occurred. See the wards at https://data.cityofchicago.org/d/sp34-6z76.
+
+Community Area - Indicates the community area where the incident occurred. Chicago has 77 community areas. See the community areas at https://data.cityofchicago.org/d/cauq-8yn6.
+
+FBI Code - Indicates the crime classification as outlined in the FBI's National Incident-Based Reporting System (NIBRS). See the Chicago Police Department listing of these classifications at http://gis.chicagopolice.org/clearmap_crime_sums/crime_types.html.
+
+X Coordinate - The x coordinate of the location where the incident occurred in State Plane Illinois East NAD 1983 projection. This location is shifted from the actual location for partial redaction but falls on the same block.
+
+Y Coordinate - The y coordinate of the location where the incident occurred in State Plane Illinois East NAD 1983 projection. This location is shifted from the actual location for partial redaction but falls on the same block.
+
+Year - Year the incident occurred.
+
+Updated On - Date and time the record was last updated.
+
+Latitude - The latitude of the location where the incident occurred. This location is shifted from the actual location for partial redaction but falls on the same block.
+
+Longitude - The longitude of the location where the incident occurred. This location is shifted from the actual location for partial redaction but falls on the same block.
+
+Location - The location where the incident occurred in a format that allows for creation of maps and other geographic operations on this data portal. This location is shifted from the actual location for partial redaction but falls on the same block.
+
+### DATA WRANGLING 
+
+This data came up pretty clean, however, I did apply some simple data wrangling. I eliminated the missing values from this dataset as well as changing the categorical variables to our advantage. This process makes it easier for our analysis later on
+```{r}
+crimes_12_to_17_raw <- read.csv("Chicago_Crimes_2012_to_2017.csv", stringsAsFactors = FALSE)
+crimes_12_to_17 <- na.omit(crimes_12_to_17_raw)
+
+crimes_12_to_17$Primary.Type <- as.factor(crimes_12_to_17$Primary.Type) 
+crimes_12_to_17$Description <- as.factor(crimes_12_to_17$Description) 
+crimes_12_to_17$Location.Description <- as.factor(crimes_12_to_17$Location.Description) 
+crimes_12_to_17$IUCR <- as.factor(crimes_12_to_17$IUCR) 
+
+crimes_12_to_17$Arrest[which(crimes_12_to_17$Arrest == "True")] <- 1
+crimes_12_to_17$Arrest[which(crimes_12_to_17$Arrest == "False")] <- 0
+
+crimes_12_to_17$Domestic[which(crimes_12_to_17$Domestic == "True")] <- 1
+crimes_12_to_17$Domestic[which(crimes_12_to_17$Domestic == "False")] <- 0
+
+head(crimes_12_to_17)
+```
+
+### ANALYSIS ON DATASET
+
+```{r}
+#install.packages('ggplot2')
+library(ggplot2)
+primary_type <- ggplot(crimes_12_to_17, aes(Primary.Type))
+primary_type + geom_histogram(stat = "count") + coord_flip()
+```
+
+It is clear from this graph that the most common types of crimes are
+- Theft
+- Battery robbery
+- Criminal damage
+- Narcotics
+
+```{r}
+ggplot(crimes_12_to_17, aes(Year)) +
+  geom_density()
+```
+
+From this density plot we can observe how crimes have decreased since year 2012, however it has not decreased drastically from 2014-2016
+
+```{r}
+#install.packages('plotrix')
+library(plotrix)
+arrests <- table(crimes_12_to_17$Arrest)
+lbls <- paste(names(arrests), "\n", arrests, sep="")
+pie3D(arrests, labels = lbls, 
+  	main="Arrests results (1 = True, 0 = False) from Crimes commited ")
+```
+
+Out of all the crimes committed, only 26% of the crimes resulted in an arrest
+
+```{r}
+domestic <- table(crimes_12_to_17$Domestic)
+lbls <- paste(names(domestic), "\n", domestic, sep="")
+pie(domestic, labels = lbls, 
+  	main="Domestic results (1 = True, 0 = False) for Crimes commited ")
+```
+
+Out of all the crimes, only about 15% where domestic
+
+```{r}
+#levels(crimes_12_to_17$IUCR) #353 Levels
+top10_iucr <- tail(names(sort(table(crimes_12_to_17$IUCR))), 10)
+iucr_raw <- table(crimes_12_to_17$IUCR)
+barplot(iucr_raw[order(iucr_raw, decreasing = TRUE)], xlim = c(0,11))
+```
+
+The most common IUCR Codes
+- Theft of $500 and under
+- Domestic battery
+- Battery robbery
+- Damage to property
+
+```{r}
+#levels(crimes_12_to_17$Description) #340 Levels
+top10_description <- tail(names(sort(table(crimes_12_to_17$Description))), 10)
+head(top10_description)
+```
+
+It is clear that the top Descriptions of crimes are: Building, automobile, and forcible entry. This is key for the Chicago Police Department
+
+```{r}
+#levels(crimes_12_to_17$Location.Description) #141 Levels
+top10_location_description <- tail(names(sort(table(crimes_12_to_17$Location.Description))), 10)
+head(top10_location_description)
+#street, residence, apartment, etc...
+#location_description_raw <- table(crimes_12_to_17$Location.Description)
+#barplot(location_description_raw[order(location_description_raw, decreasing = TRUE)], xlim = c(0,11))
+#scaling the graph is impossible
+```
+
+The top locations where crimes occur include school, retail stores, and residentail yards. This is important because the police can pay more attention to these areas
+
+```{r}
+crimes_12_to_17$Beat <- as.factor(crimes_12_to_17$Beat) #Put this at the beggining of the report
+#levels(crimes_12_to_17$Beat) #289 Levels
+top10_beat <- tail(names(sort(table(crimes_12_to_17$Beat))), 10)
+beat_raw <- table(crimes_12_to_17$Beat)
+barplot(beat_raw[order(beat_raw, decreasing = TRUE)], xlim = c(0,11))
+```
+
+Most common beat (a small police geographical area). Additional reference for beats: https://data.cityofchicago.org/Public-Safety/Boundaries-Police-Beats-current-/aerh-rz74
+
+```{r}
+crimes_12_to_17$District <- as.factor(crimes_12_to_17$District) #Put this at the beggining of the report
+#levels(crimes_12_to_17$District) #23 Levels
+top10_district <- tail(names(sort(table(crimes_12_to_17$District))), 10)
+district_raw <- table(crimes_12_to_17$District)
+barplot(district_raw[order(district_raw, decreasing = TRUE)], xlim = c(0,11))
+```
+
+These are the most common Districts where crimes occur in Chicago
+- District 11
+- District 8
+- District 6
+
+```{r}
+crimes_12_to_17$Ward <- as.factor(crimes_12_to_17$Ward) #Put this at the beggining of the report
+#levels(crimes_12_to_17$Ward) #45 Levels
+top10_ward <- tail(names(sort(table(crimes_12_to_17$Ward))), 10)
+ward_raw <- table(crimes_12_to_17$Ward)
+barplot(ward_raw[order(ward_raw, decreasing = TRUE)], xlim = c(0,11))
+```
+
+The Ward is simply the City Council District where the crimes occurs. Additional visual reference: https://data.cityofchicago.org/d/sp34-6z76.
+
+```{r}
+crimes_12_to_17$Community.Area <- as.factor(crimes_12_to_17$Community.Area) #Put this at the beggining of the report
+#levels(crimes_12_to_17$Community.Area) #67 Levels
+top10_community_area <- tail(names(sort(table(crimes_12_to_17$Community.Area))), 10)
+community_area_raw <- table(crimes_12_to_17$Community.Area)
+barplot(community_area_raw[order(community_area_raw, decreasing = TRUE)], xlim = c(0,11))
+```
+
+These areas also represent where the most common crimes occur. As you might observe, Area 25 is increasingly high compared to other areas. This is a great piece of information that the police should now and pay attention to.
+
+```{r}
+crimes_12_to_17$FBI.Code <- as.factor(crimes_12_to_17$FBI.Code) #Put this at the beggining of the report
+#levels(crimes_12_to_17$FBI.Code) #19 Levels
+top10_fbi_code <- tail(names(sort(table(crimes_12_to_17$FBI.Code))), 10)
+fbi_raw <- table(crimes_12_to_17$FBI.Code)
+barplot(fbi_raw[order(fbi_raw, decreasing = TRUE)], xlim = c(0,11))
+```
+
+The most common FBI Codes
+- Larceny
+- Simple Battery
+- Vandalism
+
+### RESULTS AND RECOMMENDATIONS
+
+From the previous graphs we were able to obtain significant information like:
+- Most common type of crimes
+- Decrease in crime rate from year 2012-2017
+- Crimes that resulted in Arrests
+- Top IUCR Codes
+- Most common areas where crimes occur
+- Top FBI Codes
+
+Based on the analysis done on the Chicago crime scene data set, we are able to offer several recommendations to the Chicago Police Department
+Focus on the most common types of crimes in order to prevent them
+More arrests have to be made per crime, only 26% of the criminals where arrested
+Theft of $500 in the streets is very common, definitely have more patrols going around the area
+Set a specific perimeter for the areas where crime scene is extremely high
